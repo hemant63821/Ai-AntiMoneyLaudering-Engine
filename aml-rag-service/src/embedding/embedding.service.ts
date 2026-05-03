@@ -1,19 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
+import { VoyageAIClient } from 'voyageai';
 import { EmbedPatternDto } from './dto/embed-pattern.dto';
 
 @Injectable()
 export class EmbeddingService {
   private readonly logger = new Logger(EmbeddingService.name);
-  private readonly client: OpenAI;
+  private readonly client: VoyageAIClient;
   private readonly model: string;
-  private readonly dimensions: number;
 
   constructor(private config: ConfigService) {
-    this.client = new OpenAI({ apiKey: config.get<string>('openai.apiKey') });
-    this.model = config.get<string>('openai.embeddingModel');
-    this.dimensions = config.get<number>('openai.embeddingDimensions');
+    this.client = new VoyageAIClient({ apiKey: config.get<string>('voyage.apiKey') });
+    this.model = config.get<string>('voyage.embeddingModel');
   }
 
   async embedPattern(pattern: EmbedPatternDto): Promise<number[]> {
@@ -22,20 +20,12 @@ export class EmbeddingService {
   }
 
   async embedText(text: string): Promise<number[]> {
-    const response = await this.client.embeddings.create({
-      model: this.model,
-      input: text,
-      dimensions: this.dimensions,
-    });
+    const response = await this.client.embed({ input: text, model: this.model });
     return response.data[0].embedding;
   }
 
   async embedBatch(texts: string[]): Promise<number[][]> {
-    const response = await this.client.embeddings.create({
-      model: this.model,
-      input: texts,
-      dimensions: this.dimensions,
-    });
+    const response = await this.client.embed({ input: texts, model: this.model });
     return response.data
       .sort((a, b) => a.index - b.index)
       .map((e) => e.embedding);

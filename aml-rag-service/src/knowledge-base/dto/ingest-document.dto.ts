@@ -1,4 +1,5 @@
 import { IsString, IsEnum, IsOptional, IsNumber, Min, Max } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { KnowledgeSource, TypologyCategory, RiskLevel } from '../../common/types/aml.types';
 
@@ -59,6 +60,29 @@ export class IngestDocumentDto {
 
   @ApiPropertyOptional({ description: 'Overlap between chunks in characters', default: 200 })
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(800)
+  chunkOverlap?: number;
+}
+
+export class IngestFileBatchMetaDto {
+  @ApiPropertyOptional({ enum: KnowledgeSource, default: KnowledgeSource.FATF, description: 'Target namespace (defaults to fatf-guidance)' })
+  @IsOptional()
+  @IsEnum(KnowledgeSource)
+  source?: KnowledgeSource;
+
+  @ApiPropertyOptional({ default: 1000 })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? Number(value) : value))
+  @IsNumber()
+  @Min(200)
+  @Max(4000)
+  chunkSize?: number;
+
+  @ApiPropertyOptional({ default: 200 })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? Number(value) : value))
   @IsNumber()
   @Min(0)
   @Max(800)
