@@ -28,25 +28,35 @@ export class PineconeService implements OnModuleInit {
   }
 
   private async ensureIndex() {
+    const dimension = this.config.get<number>('voyage.embeddingDimensions');
     const existing = await this.client.listIndexes();
     const names = existing.indexes?.map((i) => i.name) ?? [];
 
-    if (!names.includes(this.indexName)) {
-      this.logger.log(`Creating Pinecone index: ${this.indexName}`);
-      await this.client.createIndex({
-        name: this.indexName,
-        dimension: this.config.get<number>('openai.embeddingDimensions'),
-        metric: 'cosine',
-        spec: {
-          serverless: {
-            cloud: 'aws',
-            region: this.config.get<string>('pinecone.environment'),
-          },
-        },
-      });
-      // Allow time for index to initialize
-      await new Promise((r) => setTimeout(r, 60_000));
+    if (names.includes(this.indexName)) {
+      const desc = await this.client.describeIndex(this.indexName);
+      if (desc.dimension === dimension) return;
+
+      this.logger.warn(
+        `Index "${this.indexName}" has dimension ${desc.dimension} but embeddings are ${dimension}. ` +
+        `Deleting and recreating — all existing vectors will be lost.`,
+      );
+      await this.client.deleteIndex(this.indexName);
+      await new Promise((r) => setTimeout(r, 10_000));
     }
+
+    this.logger.log(`Creating Pinecone index: ${this.indexName} (dim=${dimension})`);
+    await this.client.createIndex({
+      name: this.indexName,
+      dimension,
+      metric: 'cosine',
+      spec: {
+        serverless: {
+          cloud: 'aws',
+          region: this.config.get<string>('pinecone.environment'),
+        },
+      },
+    });
+    await new Promise((r) => setTimeout(r, 60_000));
   }
 
   async upsert(

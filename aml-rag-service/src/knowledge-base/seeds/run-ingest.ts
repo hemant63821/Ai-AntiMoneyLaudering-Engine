@@ -6,7 +6,7 @@ import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import OpenAI from 'openai';
+import { VoyageAIClient } from 'voyageai';
 import { Pinecone } from '@pinecone-database/pinecone';
 import { FINCEN_TYPOLOGIES } from './fincen-typologies';
 import { FATF_GUIDANCE } from './fatf-guidance';
@@ -15,14 +15,18 @@ import { IngestDocumentDto } from '../dto/ingest-document.dto';
 import { KnowledgeSource } from '../../common/types/aml.types';
 import { v4 as uuidv4 } from 'uuid';
 
-const EMBEDDING_MODEL = process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-large';
-const EMBEDDING_DIMENSIONS = parseInt(process.env.OPENAI_EMBEDDING_DIMENSIONS || '3072', 10);
+const EMBEDDING_MODEL = process.env.VOYAGE_EMBEDDING_MODEL || 'voyage-finance-2';
+const EMBEDDING_DIMENSIONS = parseInt(process.env.VOYAGE_EMBEDDING_DIMENSIONS || '1024', 10);
 const INDEX_NAME = process.env.PINECONE_INDEX_NAME || 'aml-knowledge-base';
 const CHUNK_SIZE = 1000;
 const CHUNK_OVERLAP = 200;
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const voyage = new VoyageAIClient({ apiKey: process.env.VOYAGE_API_KEY });
 const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
+
+function stripNulls(obj: Record<string, any>): Record<string, any> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v != null));
+}
 
 function chunkText(text: string, size: number, overlap: number): string[] {
   const chunks: string[] = [];
@@ -41,11 +45,7 @@ function chunkText(text: string, size: number, overlap: number): string[] {
 }
 
 async function embedBatch(texts: string[]): Promise<number[][]> {
-  const res = await openai.embeddings.create({
-    model: EMBEDDING_MODEL,
-    input: texts,
-    dimensions: EMBEDDING_DIMENSIONS,
-  });
+  const res = await voyage.embed({ input: texts, model: EMBEDDING_MODEL });
   return res.data.sort((a, b) => a.index - b.index).map((e) => e.embedding);
 }
 
@@ -60,21 +60,21 @@ async function ingestDocument(doc: IngestDocumentDto, index: ReturnType<Pinecone
   const vectors = chunks.map((chunk, i) => ({
     id: `${documentId}-chunk-${i}`,
     values: embeddings[i],
-    metadata: {
+    metadata: stripNulls({
       source: doc.source,
-      category: doc.category ?? null,
+      category: doc.category,
       documentTitle: doc.title,
       title: doc.title,
       documentId,
       content: chunk,
       chunkIndex: i,
       totalChunks: chunks.length,
-      publicationDate: doc.publicationDate ?? null,
-      jurisdiction: doc.jurisdiction ?? null,
-      riskLevel: doc.riskLevel ?? null,
-      sarCaseId: doc.sarCaseId ?? null,
-      regulatoryRef: doc.regulatoryRef ?? null,
-    },
+      publicationDate: doc.publicationDate,
+      jurisdiction: doc.jurisdiction,
+      riskLevel: doc.riskLevel,
+      sarCaseId: doc.sarCaseId,
+      regulatoryRef: doc.regulatoryRef,
+    }),
   }));
 
   // Upsert in batches of 100

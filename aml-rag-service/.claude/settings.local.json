@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(npm install *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(node *)",
+      "Bash(xargs cat *)",
+      "Bash(npm uninstall *)",
+      "Bash(npm create *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)"
     ]
   }
 }
