@@ -6,6 +6,7 @@ import { EmbeddingModule } from './embedding/embedding.module';
 import { RetrievalModule } from './retrieval/retrieval.module';
 import { KnowledgeBaseModule } from './knowledge-base/knowledge-base.module';
 import { HealthModule } from './health/health.module';
+import { TransactionModule } from './transaction/transaction.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { HealthModule } from './health/health.module';
     RetrievalModule,
     KnowledgeBaseModule,
     HealthModule,
+    TransactionModule,
   ],
 })
 export class AppModule {}
